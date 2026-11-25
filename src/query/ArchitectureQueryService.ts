@@ -24,6 +24,9 @@ export class ArchitectureQueryService {
   }
   graph() {
     return {
+      // Snapshot layers are inserted in config order; retain that order without
+      // adding a property to the persisted graph model.
+      layers: this.repository.query('MATCH (l:Layer) RETURN l.name AS name ORDER BY id(l)'),
       nodes: this.repository.query('MATCH (m:Module) RETURN m.path AS path, m.layer AS layer, m.loc AS loc ORDER BY path'),
       edges: this.repository.query('MATCH (a:Module)-[r:IMPORTS]->(b:Module) RETURN a.path AS from, b.path AS to, r.specifiers AS specifiers ORDER BY from, to'),
       constraints: this.repository.query('MATCH (c:Constraint) RETURN c.id AS id, c.from AS from, c.to AS to, c.reason AS reason ORDER BY id')

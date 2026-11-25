@@ -18,9 +18,9 @@ export function createServer(service: ArchitectureQueryService): http.Server {
           result = { dependencies: service.dependenciesOf(module), dependents: service.dependentsOf(module), impact: service.dependentsOf(module, true), impactPaths: service.impactPaths(module), types: service.typesIn(module) }; break;
         }
         default: {
-          const asset = url.pathname === '/' ? 'index.html' : url.pathname === '/app.js' ? 'app.js' : null;
+          const asset = url.pathname === '/' ? 'index.html' : url.pathname === '/app.js' ? 'app.js' : url.pathname === '/styles.css' ? 'styles.css' : null;
           if (!asset) { res.writeHead(404).end('Not found'); return; }
-          res.writeHead(200, {'Content-Type': asset.endsWith('.js') ? 'text/javascript; charset=utf-8' : 'text/html; charset=utf-8', 'Content-Security-Policy': "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'"});
+          res.writeHead(200, {'Content-Type': asset.endsWith('.js') ? 'text/javascript; charset=utf-8' : asset.endsWith('.css') ? 'text/css; charset=utf-8' : 'text/html; charset=utf-8', 'Content-Security-Policy': "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'"});
           res.end(fs.readFileSync(path.join(assets, asset))); return;
         }
       }

@@ -1,8 +1,7 @@
 'use strict';
 const $ = id => document.getElementById(id);
 const NS = 'http://www.w3.org/2000/svg';
-const colors = ['#dce8fa', '#dbeedf', '#f1e2da', '#f7ebc6', '#e6e9e8'];
-const strokes = ['#6e8fb5', '#5b9976', '#aa806a', '#b09950', '#899590'];
+const layerColors = ['#6b8de3', '#49a58b', '#c59b4b', '#ba7b9c', '#899590'];
 const edgeKey = edge => JSON.stringify([edge.from, edge.to]);
 const nodeElements = new Map();
 const edgeElements = new Map();
@@ -42,6 +41,7 @@ function highlight(path, detail) {
     const impact = impactEdges.has(key);
     const bad = line.classList.contains('bad');
     line.classList.toggle('impact', impact);
+    line.classList.toggle('connected', line.dataset.from === path || line.dataset.to === path);
     line.setAttribute('marker-end', `url(#${bad ? 'bad-arrow' : impact ? 'impact-arrow' : 'arrow'})`);
     // Keep the red violation above all normal and purple paths, in every state.
     edgeGroups[bad ? 'violation' : impact ? 'impact' : 'normal'].append(line);
@@ -53,7 +53,7 @@ function clearHighlight() {
     node.setAttribute('aria-pressed', 'false');
   }
   for (const line of edgeElements.values()) {
-    line.classList.remove('impact', 'focused');
+    line.classList.remove('impact', 'focused', 'connected', 'hovered');
     const bad = line.classList.contains('bad');
     line.setAttribute('marker-end', `url(#${bad ? 'bad-arrow' : 'arrow'})`);
     edgeGroups[bad ? 'violation' : 'normal'].append(line);
@@ -64,6 +64,7 @@ function reset() {
   clearHighlight();
   $('reset').disabled = true;
   $('selection-label').textContent = 'Select a module to trace its impact. Arrows point to dependencies.';
+  $('details').classList.remove('dense');
   $('details').replaceChildren(
     htmlElement('h2', '', 'Module inspector'),
     htmlElement('p', 'muted', 'Select a module to see dependencies and transitive impact, computed by Relate.')
@@ -99,8 +100,8 @@ function renderDetails(path, detail) {
     details.append(row);
   }
   const connections = htmlElement('details', 'connection-details');
-  // Keep the large-impact view within the demo frame, without dropping results.
-  connections.open = detail.impact.length <= 5;
+  connections.open = true;
+  $('details').classList.toggle('dense', detail.impact.length > 5);
   connections.append(htmlElement('summary', '', `Direct connections & types · ${detail.dependencies.length} / ${detail.dependents.length} / ${detail.types.length}`), details);
   $('details').replaceChildren(htmlElement('h3', '', path), panel, connections);
 }
@@ -134,8 +135,7 @@ function renderLegend(layers) {
   layers.forEach((layer, index) => {
     const item = htmlElement('span', 'legend-item');
     const swatch = htmlElement('span', 'swatch');
-    swatch.style.background = colors[index % colors.length];
-    swatch.style.borderColor = strokes[index % strokes.length];
+    swatch.style.background = layerColors[index % layerColors.length];
     item.append(swatch, document.createTextNode(layer)); legend.append(item);
   });
   for (const [label, kind] of [['Import', ''], ['Violation', 'violation'], ['Impact path', 'impact']]) {
@@ -145,16 +145,22 @@ function renderLegend(layers) {
   }
 }
 
+function hoverModule(path, active) {
+  for (const line of edgeElements.values()) {
+    if (line.dataset.from === path || line.dataset.to === path) line.classList.toggle('hovered', active);
+  }
+}
+
 function drawGraph(graph, violations, layers) {
   const svg = $('graph');
-  const width = Math.max(900, layers.length * 225);
-  const nodeWidth = 170;
-  const nodeHeight = 46;
+  const width = Math.max(900, layers.length * 232);
+  const nodeWidth = 160;
+  const nodeHeight = 56;
   const largestLayer = Math.max(1, ...layers.map(layer => graph.nodes.filter(n => n.layer === layer).length));
-  const height = Math.max(460, 116 + largestLayer * 76 + 40);
+  const height = Math.max(424, 64 + largestLayer * 88);
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
   const defs = svgElement('defs');
-  for (const [id, color] of [['arrow', '#92a79e'], ['bad-arrow', '#cc3a46'], ['impact-arrow', '#7950bc']]) {
+  for (const [id, color] of [['arrow', 'var(--edge)'], ['bad-arrow', 'var(--danger)'], ['impact-arrow', 'var(--impact)']]) {
     const marker = svgElement('marker', {id, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 5, markerHeight: 5, orient: 'auto'});
     marker.append(svgElement('path', {d: 'M 0 0 L 10 5 L 0 10 z', fill: color}));
     defs.append(marker);
@@ -165,13 +171,18 @@ function drawGraph(graph, violations, layers) {
   const coords = new Map();
   layers.forEach((layer, index) => {
     const x = index * (width / layers.length) + 20;
-    const heading = svgElement('text', {x, y: 25, class: 'lane'}, layer.toUpperCase());
-    heading.style.fill = strokes[index % strokes.length]; svg.append(heading);
-    graph.nodes.filter(n => n.layer === layer).forEach((node, row) => coords.set(node.path, {x, y: 116 + row * 76, index}));
+    const color = layerColors[index % layerColors.length];
+    const title = layer === 'ui' ? 'UI' : layer === 'db' ? 'DB' : layer.charAt(0).toUpperCase() + layer.slice(1);
+    const pill = svgElement('g', {class: 'layer-pill', transform: `translate(${x},16)`});
+    pill.style.setProperty('--layer', color);
+    pill.append(svgElement('rect', {width: Math.max(56, title.length * 7 + 32), height: 26, rx: 13}));
+    pill.append(svgElement('circle', {cx: 13, cy: 13, r: 3}));
+    pill.append(svgElement('text', {x: 23, y: 17, class: 'lane'}, title));
+    svg.append(pill);
+    graph.nodes.filter(n => n.layer === layer).forEach((node, row) => coords.set(node.path, {x, y: 80 + row * 88, index}));
   });
 
-  // Allocate side ports and per-column-pair lanes deterministically. This is
-  // visual routing only: graph data and reachability stay owned by Relate.
+  // Ports and curvature are visual only; Relate still owns the graph and paths.
   const pairs = new Map();
   const incoming = new Map();
   const outgoing = new Map();
@@ -182,7 +193,6 @@ function drawGraph(graph, violations, layers) {
     add(outgoing, edge.from, edge);
     add(incoming, edge.to, edge);
   }
-  let longLane = 0;
   for (const edge of graph.edges) {
     const a = coords.get(edge.from), b = coords.get(edge.to);
     const bad = violations.some(v => edgeKey(v) === edgeKey(edge));
@@ -197,18 +207,13 @@ function drawGraph(graph, violations, layers) {
     const y2 = portY(b, incoming.get(edge.to));
     let route;
     if (a.index === b.index) {
-      const gutter = a.x + nodeWidth + 17 + slot * 5;
+      const gutter = a.x + nodeWidth + 24 + slot * 8;
       route = `M${a.x + nodeWidth},${y1} C${gutter},${y1} ${gutter},${y2} ${b.x + nodeWidth},${y2}`;
-    } else if (Math.abs(a.index - b.index) > 1) {
-      const rail = bad ? height - 13 : 49 + longLane++ * 9;
-      const g1 = x1 + direction * (13 + slot * 3);
-      const g2 = x2 - direction * (13 + slot * 3);
-      route = `M${x1},${y1} C${g1},${y1} ${g1},${rail} ${g1},${rail} L${g2},${rail} C${g2},${rail} ${g2},${y2} ${x2},${y2}`;
     } else {
-      const gap = Math.abs(x2 - x1);
-      const c1 = x1 + direction * (gap * .42 + offset * 5);
-      const c2 = x2 - direction * (gap * .42 - offset * 5);
-      route = `M${x1},${y1} C${c1},${y1 + offset * 10} ${c2},${y2 - offset * 10} ${x2},${y2}`;
+      const distance = Math.abs(x2 - x1);
+      const reach = Math.min(160, distance * .4) + offset * 8;
+      const bend = bad ? 48 : offset * 12;
+      route = `M${x1},${y1} C${x1 + direction * reach},${y1 + bend} ${x2 - direction * reach},${y2 + bend} ${x2},${y2}`;
     }
     const line = svgElement('path', {d: route, class: `edge${bad ? ' bad' : ''}`, 'marker-end': `url(#${bad ? 'bad-arrow' : 'arrow'})`});
     line.dataset.from = edge.from; line.dataset.to = edge.to;
@@ -220,12 +225,18 @@ function drawGraph(graph, violations, layers) {
     const {x, y, index} = coords.get(node.path);
     const group = svgElement('g', {class: 'node', transform: `translate(${x},${y})`, tabindex: 0, role: 'button', 'aria-label': node.path, 'aria-pressed': 'false'});
     group.dataset.path = node.path;
-    group.append(svgElement('rect', {width: nodeWidth, height: nodeHeight, rx: 7, fill: colors[index % colors.length], stroke: strokes[index % strokes.length]}));
+    group.style.setProperty('--layer', layerColors[index % layerColors.length]);
+    group.append(svgElement('rect', {class: 'node-card', width: nodeWidth, height: nodeHeight, rx: 10}));
+    group.append(svgElement('circle', {class: 'node-dot', cx: 15, cy: 21, r: 3}));
     const filename = node.path.split('/').pop();
-    const label = svgElement('text', {x: 9, y: 19}, filename);
-    if (filename.length > 22) { label.setAttribute('textLength', nodeWidth - 18); label.setAttribute('lengthAdjust', 'spacingAndGlyphs'); }
-    group.append(label, svgElement('text', {x: 9, y: 35, class: 'node-meta'}, `${node.loc} lines`), svgElement('title', {}, node.path));
+    const label = svgElement('text', {x: 26, y: 25, class: 'node-name'}, filename);
+    if (filename.length > 22) { label.setAttribute('textLength', nodeWidth - 36); label.setAttribute('lengthAdjust', 'spacingAndGlyphs'); }
+    group.append(label, svgElement('text', {x: 26, y: 42, class: 'node-meta'}, `${node.loc} lines`), svgElement('title', {}, node.path));
     group.addEventListener('click', () => select(node.path));
+    group.addEventListener('pointerenter', () => hoverModule(node.path, true));
+    group.addEventListener('pointerleave', () => hoverModule(node.path, false));
+    group.addEventListener('focus', () => hoverModule(node.path, true));
+    group.addEventListener('blur', () => hoverModule(node.path, false));
     group.addEventListener('keydown', event => {
       if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); select(node.path); }
     });
@@ -241,8 +252,10 @@ async function load() {
     stat.append(htmlElement('strong', '', String(count)), document.createTextNode(label)); $('stats').append(stat);
   }
   for (const constraint of graph.constraints) {
-    const card = htmlElement('div', 'card');
-    card.append(htmlElement('span', 'constraint-route', `${constraint.from} → ${constraint.to} forbidden`), htmlElement('span', 'constraint-reason', constraint.reason));
+    const card = htmlElement('details', 'rule');
+    const summary = htmlElement('summary');
+    summary.append(htmlElement('span', 'constraint-route', `${constraint.from} → ${constraint.to}`), htmlElement('span', 'rule-state', 'Forbidden'));
+    card.append(summary, htmlElement('p', 'constraint-reason', constraint.reason));
     $('constraints').append(card);
   }
   $('violation-title').textContent = `Violations / ${violations.length}`;
@@ -254,9 +267,7 @@ async function load() {
     $('violations').append(card);
   }
   if (!violations.length) $('violations').append(htmlElement('p', 'muted', 'No architecture violations.'));
-  const preferred = ['ui', 'service', 'db', 'domain'];
-  const rank = layer => preferred.includes(layer) ? preferred.indexOf(layer) : preferred.length;
-  const layers = [...new Set(graph.nodes.map(node => node.layer))].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
+  const layers = graph.layers.map(layer => layer.name);
   renderLegend(layers);
   drawGraph(graph, violations, layers);
   $('reset').addEventListener('click', reset);

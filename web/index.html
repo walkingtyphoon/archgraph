@@ -4,94 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>archgraph · Architecture memory</title>
-  <style>
-    :root { font-family: ui-sans-serif, system-ui, sans-serif; color: #203137; background: #f5f6f1; --impact: #7950bc; --danger: #cc3a46; }
-    * { box-sizing: border-box; }
-    body { margin: 0; }
-    header { height: 74px; padding: 14px 24px; border-bottom: 1px solid #d4dcd5; display: flex; align-items: center; gap: 24px; background: #fff; }
-    h1 { font-size: 26px; margin: 0; letter-spacing: -1px; }
-    header p { margin: 2px 0 0; color: #627371; font-size: 12px; }
-    .brand-dot { color: #489674; }
-    .tag { margin-left: auto; border: 1px solid #b5cfc3; border-radius: 20px; padding: 7px 12px; font-size: 11px; color: #27634b; }
-    main { display: grid; grid-template-columns: minmax(0,1fr) 312px; height: calc(100dvh - 74px); min-height: 590px; }
-    article { padding: 18px 24px 14px; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
-    aside { padding: 18px; background: #fff; border-left: 1px solid #d4dcd5; min-width: 0; overflow-y: auto; }
-    h2 { font-size: 10px; text-transform: uppercase; letter-spacing: 1.4px; color: #627371; margin: 0 0 9px; }
-    #stats { display: flex; gap: 32px; margin-bottom: 18px; font-size: 11px; }
-    #stats strong { font-size: 25px; display: block; letter-spacing: -1px; line-height: 1.15; margin-bottom: 3px; }
-    #stats .has-violations strong { color: var(--danger); }
-    .map-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-    .map-heading h2 { margin: 0; }
-    #selection-label { color: #506963; font-size: 11px; margin: 8px 0 10px; min-height: 16px; }
-    #legend { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 10px; color: #536761; margin-bottom: 6px; }
-    .legend-item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
-    .swatch { width: 8px; height: 8px; border-radius: 2px; border: 1px solid; }
-    .line-key { width: 17px; height: 0; border-top: 2px solid #879b93; }
-    .line-key.violation { border-color: var(--danger); border-width: 3px; }
-    .line-key.impact { border-color: var(--impact); border-width: 3px; }
-    .graph-frame { flex: 1; min-height: 0; }
-    #graph { width: 100%; height: 100%; display: block; }
-    #graph text { font-family: inherit; font-size: 11px; fill: #1e3330; }
-    #graph .lane { font-size: 11px; font-weight: 750; letter-spacing: 2px; }
-    #graph .node-meta { font-size: 10px; fill: #526b62; }
-    .node { cursor: pointer; opacity: 1; transition: opacity .16s; outline: none; }
-    .node rect { stroke-width: 1.2; }
-    .node.dim { opacity: .55; }
-    .node:hover rect, .node:focus-visible rect { stroke: #203137; stroke-width: 2.5; }
-    .node.selected rect { stroke: #21654f; stroke-width: 3; fill: #e2f1e8; }
-    .node.impact rect { stroke: var(--impact); stroke-width: 2.2; fill: #eee6fb; }
-    .node.impact .node-meta { fill: #7048a5; }
-    .edge { stroke: #92a79e; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-    .edge.impact { stroke: var(--impact); stroke-width: 2.8; }
-    .edge.bad { stroke: var(--danger); stroke-width: 3.3; }
-    .edge.focused { stroke-width: 4.2; }
-    section { margin-bottom: 16px; }
-    .card { border: 1px solid #dce2dc; padding: 9px 10px; margin: 7px 0; border-radius: 7px; font-size: 11px; overflow-wrap: anywhere; line-height: 1.45; }
-    .constraint-route { font-weight: 650; display: block; margin-bottom: 3px; }
-    .constraint-reason { color: #61736d; }
-    .violation-card { display: block; width: 100%; text-align: left; border-color: #e9b7bb; background: #fff6f4; color: #8f2934; }
-    .violation-card:hover, .violation-card:focus-visible { border-color: var(--danger); background: #ffece9; }
-    .violation-card span { display: block; margin-top: 4px; font-size: 10px; color: #a94b55; }
-    .error { color: #a52d32; }
-    .muted { color: #627371; font-size: 11px; line-height: 1.5; }
-    #details h3 { font-size: 12px; margin: 0 0 11px; overflow-wrap: anywhere; }
-    .impact-panel { padding: 10px 11px; border: 1px solid #dacbed; border-radius: 8px; background: #f7f2fd; margin-bottom: 11px; }
-    .impact-panel h2 { display: flex; align-items: center; justify-content: space-between; color: #68419f; margin-bottom: 6px; }
-    .count { font-size: 15px; font-weight: 750; letter-spacing: 0; }
-    .impact-list { list-style: none; padding: 0; margin: 0; font-size: 11px; line-height: 1.65; overflow-wrap: anywhere; }
-    .impact-list li::before { content: '↗'; color: var(--impact); margin-right: 7px; }
-    .impact-empty { margin: 0; font-size: 11px; color: #785c91; }
-    .cypher-box { border-top: 1px solid #e2d6ef; margin-top: 8px; padding-top: 6px; }
-    .cypher-box summary { font-size: 10px; color: #7048a5; cursor: pointer; }
-    .cypher-box pre { font: 10px/1.5 ui-monospace, monospace; white-space: pre-wrap; overflow-wrap: anywhere; margin: 7px 0; }
-    .query-param { font: 10px/1.4 ui-monospace, monospace; overflow-wrap: anywhere; color: #7048a5; }
-    .connection-details > summary { color: #627371; font-size: 10px; cursor: pointer; }
-    .connection-details dl { margin: 8px 0 0; }
-    .detail-row { display: grid; grid-template-columns: 84px minmax(0,1fr); gap: 8px; margin: 7px 0; font-size: 10px; line-height: 1.45; }
-    .detail-row dt { color: #65766f; }
-    .detail-row dd { margin: 0; overflow-wrap: anywhere; }
-    .detail-row ul { list-style: none; margin: 0; padding: 0; }
-    button { font: inherit; background: #fff; border: 1px solid #b5cfc3; padding: 6px 10px; border-radius: 6px; color: #27634b; cursor: pointer; font-size: 11px; }
-    button:disabled { opacity: .55; cursor: default; }
-    footer { font-size: 10px; color: #627371; padding-top: 6px; }
-    @media (max-width: 900px) {
-      header { padding: 14px 18px; }
-      main { grid-template-columns: 1fr; height: auto; min-height: 0; }
-      article { padding: 18px; }
-      aside { padding: 18px; border-left: 0; border-top: 1px solid #d4dcd5; overflow: visible; }
-      .graph-frame { height: 440px; flex: none; overflow-x: auto; }
-      #graph { min-width: 850px; }
-      #legend { gap: 8px 12px; }
-      .tag { display: none; }
-      #stats { gap: 24px; flex-wrap: wrap; }
-    }
-    @media (prefers-reduced-motion: reduce) { .node { transition: none; } }
-  </style>
+  <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <header>
-    <div><h1>archgraph<span class="brand-dot">.</span></h1><p>Architecture memory for coding agents</p></div>
-    <span class="tag">LOCAL SNAPSHOT / RELATE</span>
+    <div class="brand"><span class="brand-mark" aria-hidden="true">a</span><h1>archgraph</h1><span class="header-divider" aria-hidden="true">/</span><p>Architecture memory</p></div>
+    <span class="tag"><span class="status-dot"></span> Local snapshot <span class="tag-divider">·</span> Relate</span>
   </header>
   <main>
     <article>
@@ -100,12 +18,12 @@
       <p id="selection-label" aria-live="polite">Select a module to trace its impact. Arrows point to dependencies.</p>
       <div id="legend" aria-label="Graph legend"></div>
       <div class="graph-frame"><svg id="graph" role="group" aria-label="Module dependencies grouped by architecture layer"></svg></div>
-      <footer>Offline · Read-only snapshot · Re-index after code changes and restart this view.</footer>
+      <footer><span class="status-dot"></span> Read-only graph <span>Offline · Re-index to refresh</span></footer>
     </article>
     <aside>
-      <section><h2>Architecture rules</h2><div id="constraints"></div></section>
-      <section><h2 id="violation-title">Violations</h2><div id="violations"></div></section>
-      <section id="details" aria-live="polite"><h2>Module inspector</h2><p class="muted">Select a module to see dependencies and transitive impact, computed by Relate.</p></section>
+      <section class="sidebar-card"><h2>Architecture rules</h2><div id="constraints"></div></section>
+      <section class="sidebar-card violation-section"><h2 id="violation-title">Violations</h2><div id="violations"></div></section>
+      <section class="sidebar-card inspector" id="details" aria-live="polite"><h2>Module inspector</h2><p class="muted">Select a module to see dependencies and transitive impact, computed by Relate.</p></section>
     </aside>
   </main>
   <script src="/app.js" defer></script>
