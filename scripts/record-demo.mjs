@@ -1,5 +1,5 @@
 /**
- * Record the 105-second, silent archgraph demo. Start `npm run serve` first.
+ * Record the 108-second, silent archgraph demo. Start `npm run serve` first.
  * Requires Playwright (separate development tool) and ffmpeg/ffprobe on PATH.
  * Optional: PLAYWRIGHT_MODULE=/absolute/path/to/playwright/index.mjs
  *           CHROMIUM_EXECUTABLE_PATH=/absolute/path/to/chromium
@@ -52,6 +52,7 @@ page.on('console', message => { if (message.type() === 'error') errors.push(mess
 const video = page.video();
 let started;
 const timeline = [];
+const captionTimings = [];
 const mark = scene => { const seconds = (performance.now() - started) / 1000; timeline.push({ scene, seconds }); console.log(`${seconds.toFixed(2)}s ${scene}`); };
 const until = async seconds => {
   while (performance.now() - started < seconds * 1000) await sleep(Math.min(1000, seconds * 1000 - (performance.now() - started)));
@@ -69,7 +70,10 @@ async function overlays() {
     document.addEventListener('pointermove', event => { const el = document.getElementById('recording-cursor'); if (el) el.style.transform = `translate(${event.clientX}px,${event.clientY}px)`; });
   });
 }
-const caption = text => page.evaluate(text => { document.getElementById('recording-captions').textContent = text; }, text);
+const caption = async text => {
+  await page.evaluate(text => { document.getElementById('recording-captions').textContent = text; }, text);
+  captionTimings.push({ text, seconds: (performance.now() - started) / 1000 });
+};
 let mouse = { x: 40, y: 280 };
 async function move(x, y) {
   const from = { ...mouse };
@@ -162,7 +166,7 @@ try {
   await caption('No server, no cloud. One file of architecture memory.');
   await until(102);
   await caption('archgraph - github.com/walkingtyphoon/archgraph');
-  await until(105); mark('Finished');
+  await until(108); mark('Finished');
   assert.deepEqual(errors, [], 'Browser must have no errors or external requests');
 } finally {
   await context.close(); await browser.close();
@@ -182,6 +186,6 @@ for (const [scene, seconds] of [[1, 10], [2, 34], [3, 57], [4, 80], [5, 98]]) {
   const frame = run('ffmpeg', ['-y', '-ss', String(seconds), '-i', mp4, '-frames:v', '1', path.join(output, 'frames', `scene-${scene}.png`)]);
   assert.equal(frame.status, 0, frame.stderr);
 }
-const result = { mp4, webm, duration, bytes: (await stat(mp4)).size, deviceScaleFactor: 2, viewport: '1280x720', timeline, errors, capturedCliOutput: 'captured-output.json', streams: info.streams };
+const result = { mp4, webm, duration, bytes: (await stat(mp4)).size, deviceScaleFactor: 2, viewport: '1280x720', timeline, captionTimings, errors, capturedCliOutput: 'captured-output.json', streams: info.streams };
 await writeFile(path.join(output, 'recording.json'), JSON.stringify(result, null, 2));
 console.log(JSON.stringify({ mp4, duration, bytes: result.bytes, errors }, null, 2));
