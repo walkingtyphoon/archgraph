@@ -1,4 +1,9 @@
 import { RelateGraphRepository } from '../graph/RelateGraphRepository';
+export const IMPACT_PATH_QUERY = `MATCH p = (m:Module)-[:IMPORTS*]->(target:Module {path:$module})
+WHERE m.path <> target.path
+UNWIND relationships(p) AS edge
+RETURN DISTINCT startNode(edge).path AS from, endNode(edge).path AS to
+ORDER BY from, to`;
 export class ArchitectureQueryService {
   constructor(private readonly repository: RelateGraphRepository) {}
   dependenciesOf(module: string) {
@@ -6,6 +11,9 @@ export class ArchitectureQueryService {
   }
   dependentsOf(module: string, transitive = false) {
     return this.repository.query(`MATCH (m:Module)-[:IMPORTS${transitive ? '*' : ''}]->(n:Module {path:$module}) WHERE m.path <> n.path RETURN DISTINCT m.path AS path, m.layer AS layer ORDER BY path`, {module});
+  }
+  impactPaths(module: string) {
+    return { edges: this.repository.query(IMPACT_PATH_QUERY, {module}), query: IMPACT_PATH_QUERY };
   }
   typesIn(module: string) { return this.repository.query('MATCH (:Module {path:$module})-[:DECLARES]->(t:Type) RETURN t.name AS name, t.kind AS kind ORDER BY name', {module}); }
   layerSummary() { return this.repository.query('MATCH (l:Layer) OPTIONAL MATCH (m:Module)-[:IN_LAYER]->(l) RETURN l.name AS layer, count(m) AS modules, sum(m.loc) AS loc ORDER BY layer'); }

@@ -81,7 +81,29 @@ node dist/cli/main.js serve --port 4317
 
 All commands accept `--store path` (default: `store/archgraph.rl`, relative to the current working directory). Run the npm scripts from the repository root. Module paths are relative to the indexed project, use `/`, and include extensions. `--allow-violations` makes a reporting-only invocation exit successfully.
 
-The web view works offline: SVG and JavaScript are committed; no CDN, fonts or runtime network dependency. Nodes are colored by layer; violating edges are red. Click a node or focus it and press Enter to inspect dependencies, dependents, transitive impact, and exported types. JSON endpoints: `/api/graph`, `/api/violations`, `/api/summary`, and `/api/module?path=domain%2Fpatient.ts`. The HTTP server binds only to `127.0.0.1`; Ctrl-C stops it.
+The web view works offline: SVG and JavaScript are committed; no CDN, fonts or runtime network dependency. The demo layout fits **1280×720** with no scrolling in the home view or any sample module selection (with Cypher collapsed). Narrow screens keep the graph horizontally scrollable inside its own panel and stack the sidebar below it.
+
+Nothing is selected on load: all nodes appear at full opacity. Click a module or focus it and press Enter to inspect dependencies, dependents, transitive impact, and exported types. Unrelated nodes dim slightly to 0.55 opacity. Purple nodes and paths show the transitive dependents of the selected module; the green outline identifies the selection. The one-line legend distinguishes layer colors, import edges, violations, and impact paths. Service and db sit in adjacent columns; side ports and separate routing lanes reduce edge overlap. Violations stay red, thicker, and above other edges, including when they are also on an impact path.
+
+For a short demo: start at the overview, click the violation card to focus the forbidden import, then select `db/connection.ts` to show **4 transitive dependents and 5 path edges**. Expand the sidebar’s **Cypher** box to inspect the exact variable-length query and bound module parameter. Larger impact results keep all module names visible and initially collapse the supplementary direct connections/types section. Reset selection or press Escape to return to the overview.
+
+The purple path edges are returned by Relate, not found by JavaScript traversal:
+
+```cypher
+MATCH p = (m:Module)-[:IMPORTS*]->(target:Module {path:$module})
+WHERE m.path <> target.path
+UNWIND relationships(p) AS edge
+RETURN DISTINCT startNode(edge).path AS from, endNode(edge).path AS to
+ORDER BY from, to
+```
+
+JSON endpoints: `/api/graph`, `/api/violations`, `/api/summary`, and `/api/module?path=domain%2Fpatient.ts`. The module endpoint includes `impact` (transitive modules) and `impactPaths: {edges, query}` from the read-only store. The HTTP server binds only to `127.0.0.1`; Ctrl-C stops it.
+
+Demo screenshots, captured with Playwright at 1280×720: [Overview](docs/screenshots/home.png), [Violation](docs/screenshots/violation.png), [Transitive impact](docs/screenshots/impact.png).
+
+![Architecture overview](docs/screenshots/home.png)
+
+![Transitive impact from db/connection.ts](docs/screenshots/impact.png)
 
 ## Where the data lives
 

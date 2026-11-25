@@ -15,7 +15,7 @@ export function createServer(service: ArchitectureQueryService): http.Server {
         case '/api/summary': result = {stats: service.stats(), layers: service.layerSummary()}; break;
         case '/api/module': {
           const module = url.searchParams.get('path') ?? '';
-          result = { dependencies: service.dependenciesOf(module), dependents: service.dependentsOf(module), impact: service.dependentsOf(module, true), types: service.typesIn(module) }; break;
+          result = { dependencies: service.dependenciesOf(module), dependents: service.dependentsOf(module), impact: service.dependentsOf(module, true), impactPaths: service.impactPaths(module), types: service.typesIn(module) }; break;
         }
         default: {
           const asset = url.pathname === '/' ? 'index.html' : url.pathname === '/app.js' ? 'app.js' : null;
