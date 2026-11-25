@@ -2,6 +2,27 @@
 
 Local architecture memory for coding agents, powered by Relate.
 
+Demo video: (link coming soon)
+
+![Architecture overview](docs/screenshots/home.png)
+
+## Who it's for
+
+- An AI coding agent that checks the blast radius before editing a file, by querying the graph through Relate's MCP server.
+- A reviewer or CI pipeline that blocks cross-layer imports with `archgraph violations` (exits 1 on violations).
+- A developer onboarding to an unfamiliar TypeScript repo who wants to see layers, dependencies, and exported types at a glance.
+
+## Quick start
+
+Prerequisites: Node.js 18+, npm; verified on macOS arm64 with Node 25.2.1 and Relate 1.2.0.
+
+```sh
+npm install && npm run build && npm run demo
+npm run serve
+```
+
+Then open http://localhost:4317.
+
 ## Use case
 
 Before changing a TypeScript repository, an agent needs to know which modules depend on a file, which types it exports, and which layer boundaries must hold. archgraph turns those facts into a local, queryable graph. No LLM, cloud service, IDE integration, or general code-search index is involved.
@@ -45,14 +66,6 @@ Optional Relate CLI (official installer):
 curl -sSfL https://relatedb.ai/install.sh | bash
 ```
 
-From a fresh clone, first result:
-
-```sh
-npm install && npm run build && npm run demo
-npm run serve
-# Open http://localhost:4317
-```
-
 `demo` prints the summary and the intentionally planted violation, and exits successfully. Example summary:
 
 ```json
@@ -81,11 +94,9 @@ node dist/cli/main.js serve --port 4317
 
 All commands accept `--store path` (default: `store/archgraph.rl`, relative to the current working directory). Run the npm scripts from the repository root. Module paths are relative to the indexed project, use `/`, and include extensions. `--allow-violations` makes a reporting-only invocation exit successfully.
 
-The web view works offline: SVG and JavaScript are committed; no CDN, fonts or runtime network dependency. The demo layout fits **1280×720** with no scrolling in the home view or any sample module selection (with Cypher collapsed). Narrow screens keep the graph horizontally scrollable inside its own panel and stack the sidebar below it. The theme automatically follows `prefers-color-scheme`; system fonts and all assets remain offline, with 150ms selection/highlight transitions and a reduced-motion override.
+The offline web view shows layers, dependencies, and exported types, with red violations and purple impact paths. Click a module or focus it and press Enter to inspect it; connections and types expand by default, and architecture rules expand to show their reasons. The view follows your system's light or dark theme and works on narrow screens. Reset selection or press Escape to return to the overview.
 
-Nothing is selected on load: all nodes appear at full opacity. Click a module or focus it and press Enter to inspect dependencies, dependents, transitive impact, and exported types. Unrelated nodes dim slightly to 0.55 opacity. Purple outlines and paths show the transitive dependents of the selected module; a stronger purple outline identifies the selection. Nodes are white cards with subtle shadows and layer-color dots in light mode, with neutral dark cards in dark mode. The one-line legend distinguishes layer colors, import edges, violations, and impact paths. Columns follow `archgraph.config.json` layer order at indexing time: **UI → Service → Domain → DB** in the sample. The read-only graph endpoint returns layers in snapshot insertion order, without changing the graph model or stored file. Side ports and smooth Bézier curves replace orthogonal routing; normal edges are 1px at 25% opacity, becoming fully visible on hover or selection. The violation takes a short, direct 2px red curve with a soft glow and stays above other edges, including when it is also on an impact path.
-
-For a short demo: start at the overview, click the violation card to focus the forbidden import, then select `db/connection.ts` to show **4 transitive dependents and 5 path edges**. Expand the sidebar’s **Cypher** box to inspect the exact variable-length query and bound module parameter. “Direct connections & types” expands by default for every module, including large impact results. Larger results use compact spacing while retaining all module names. Architecture rules expand individually to show their reasons. Reset selection or press Escape to return to the overview.
+For a short demo: click the violation card to focus the forbidden import, then select `db/connection.ts` to show **4 transitive dependents and 5 path edges**, then expand the **Cypher** box to see the exact query and bound module parameter.
 
 The purple path edges are returned by Relate, not found by JavaScript traversal:
 
@@ -100,8 +111,6 @@ ORDER BY from, to
 JSON endpoints: `/api/graph`, `/api/violations`, `/api/summary`, and `/api/module?path=domain%2Fpatient.ts`. The module endpoint includes `impact` (transitive modules) and `impactPaths: {edges, query}` from the read-only store. The HTTP server binds only to `127.0.0.1`; Ctrl-C stops it.
 
 Demo screenshots, captured with Playwright at 1280×720: [Overview](docs/screenshots/home.png), [Violation](docs/screenshots/violation.png), [Transitive impact](docs/screenshots/impact.png), [Dark impact](docs/screenshots/impact-dark.png).
-
-![Architecture overview](docs/screenshots/home.png)
 
 ![Transitive impact from db/connection.ts](docs/screenshots/impact.png)
 
@@ -186,8 +195,13 @@ RETURN l.name AS layer, count(m) AS modules ORDER BY layer
 
 Documentation consulted: [Node API](https://relatedb.ai/docs/reference/api/javascript/), [Node embedding](https://relatedb.ai/docs/guides/embed/node/), [store layouts](https://relatedb.ai/docs/guides/storage/choose-a-store-layout/), [Cypher paths](https://relatedb.ai/docs/reference/cypher/patterns/), [MCP](https://relatedb.ai/docs/guides/serve/mcp/).
 
-### Publishing note
+## Built with
 
-When publishing the public GitHub repository, add topics `relate` and `relate-neo4j-hackathon`. This task only prepares a local Git repository; it does not add a remote, push, or publish.
+- **Relate 1.2.0:** embedded `@relate/relate` Node client, committed single-file `.rl` store, Relate CLI for inspection, and Relate MCP server for read-only agent access.
+- **TypeScript compiler API:** parsing and module resolution.
+- **Node's built-in test runner:** tests.
+- **Playwright:** screenshot capture and browser verification during development; not a project runtime dependency.
+- **AI use:** the code and documentation were written with OpenAI Codex under my direction, using CLI-based development and verification workflows. I defined the idea, architecture and requirements, reviewed every change, and verified the results by running the tests and the demo.
+- **Contest period:** the project was started during the contest period, on or after November 11, 2026.
 
 Licensed under Apache-2.0. Copyright 2026 Ethan Luo.
