@@ -1,0 +1,36 @@
+{
+  "layers": [
+    {
+      "name": "ui",
+      "pattern": "ui/**"
+    },
+    {
+      "name": "service",
+      "pattern": "service/**"
+    },
+    {
+      "name": "domain",
+      "pattern": "domain/**"
+    },
+    {
+      "name": "db",
+      "pattern": "db/**"
+    }
+  ],
+  "constraints": [
+    {
+      "id": "ui-no-db",
+      "from": "ui",
+      "to": "db",
+      "rule": "must_not_import",
+      "reason": "UI must use services instead of accessing storage directly."
+    },
+    {
+      "id": "domain-no-service",
+      "from": "domain",
+      "to": "service",
+      "rule": "must_not_import",
+      "reason": "Domain models must remain independent of orchestration."
+    }
+  ]
+}
